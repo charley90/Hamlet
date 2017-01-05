@@ -1,0 +1,98 @@
+核心思想：
+现在的数据量大，所以很多传统的统计学的东西可做可不做
+机器学习能够学到在图表上看不到的高维关系，挖掘的更多的市场信息
+技术分析短期有效长期无效，基本面分析短期无效长期有效，长期谁也说不准，短期的不断迭代就是长期。
+投资组合（portfolio）的理念 
+均值回归怕的图形样例，趋势怕的图形样例
+
+
+任务：
+1. tushare 获取沪深300 的成分股并将这些成分股写入到 postgresql 中
+2. 利用scikit learn 聚类分析，可视化这些成分股的关系
+3. 在沪深300 中寻找那些平稳回归的股票
+4. 在沪深300 中寻找最适合做pair tread 的股票。 
+5. 构建自己的特征库FeaturePrivoder(FP)
+6. 案例1  沪深三百股指的预测分类/回归模型 
+要求：至少10个features，并plot出feature importances （http://scikit-learn.org/stable/auto_examples/ensemble/plot_forest_importances.html#sphx-glr-auto-examples-ensemble-plot-forest-importances-py）
+模型：需要进行cross validation
+汇报结果：plot the results with confusion matrix(for classification problems)
+Plot出每一个time step的真实值和预测值，真实值为蓝色，预测值为红色
+7.案例2 股票价格的预测分类/回归模型（数据在csv表格中）price between 10-50 
+沪深三百内的average daily volume (ADV) in the middle 33 percentile
+根据给定数据，建立回归模型，并汇报r^2值
+8. 使用开源的库，对接数据和策略，跑回测。
+
+
+
+
+
+一：预测体系：
+（1）数据哪边来 Data
+1.tushare,yahoo,quandl
+2. 一般EOD数据字段
+交易所信息（exchange），数据来源(datavendor)，ticker/symbol,价格(dailyprice)，企业行为，国家假日
+3. 时间平稳性：ADF，Hurst(重要)
+	def hurst(ts):
+		lags=range(2,100)
+		tau=[sqrt(std(subtract(ts[lag:],ts[:-lag]))) for lag in lags]
+		poly=polyfit(log(lags),log(tau),1)
+		return poly[0]*2.0
+
+
+
+（2）数据重表示 Feature (Long Short Self)  特征是基于不同人的信念的
+
+http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators
+
+
+（3）Modeling  gridsearch
+1.SVM
+2.RF  RFR  extratrees regressior
+3.GA  mutation,crossover,fitness 概率方法产生适应概率（核心）,population;基因型，表现型
+4.LR
+5.LSTM
+6.RNN
+7.LASSO 
+8.Kernel  核心是与样本点的相似度
+7.异常数据点 类别不平衡（class balanced），可能很重要，这些才是alpha加分项 
+8.降维算法，先用PCA降到50维以内，再用TSNA(流型算法)高效降维
+9.模型指标 adjusted R_squre,AIC,BIC
+
+
+（4）Ensemble 集成学习 
+voting/blending(stacking) 
+主要思想：4个人每个人都做对做错的（基分类器），那每题都来比较答案做出正确答案
+做法：K折交叉验证
+adaboost
+理论：理论上可以无限接近1，每次都在错误的样本上重新做分类
+二：基于预测让利益最大化
+（1）风控
+Step1.协方差矩阵SVD 分解，在特征值中去掉那些在随机分布（Marchenko-Pastur）一个标准差中的特征值
+Step2.重构对角特征矩阵，
+Step3. 再次SVD分解，得到特征值第二小的特征向量，及我们需要的最有资金配置
+
+这边的风险控制主要是投资组合的比例配置，让策略选择出来的个股的投资组合（portfolio）波动最小。不是自己理解的那种风险控制。
+
+
+（2）Engine
+（3）案例
+
+
+三：回测的解读
+1.策略基本假设
+2.SharpRatio
+3.杠杆
+4.频率
+5.风险
+6.W/L
+7.模型复杂的
+8.Maxium drawdown
+9.Benchmarking
+
+
+
+
+
+sklearn import make  构造数据集
+sklearn.metriscs 评价指标
+predict_proba(x) 返回在不同类别上的概率
