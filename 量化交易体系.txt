@@ -65,6 +65,7 @@ voting/blending(stacking)
 做法：K折交叉验证
 adaboost
 理论：理论上可以无限接近1，每次都在错误的样本上重新做分类
+
 二：基于预测让利益最大化
 （1）风控
 Step1.协方差矩阵SVD 分解，在特征值中去掉那些在随机分布（Marchenko-Pastur）一个标准差中的特征值
@@ -78,7 +79,8 @@ Step3. 再次SVD分解，得到特征值第二小的特征向量，及我们需要的最有资金配置
 （3）案例
 
 
-三：回测的解读
+三：回测
+(1)指标解读
 1.策略基本假设
 2.SharpRatio
 3.杠杆
@@ -88,10 +90,15 @@ Step3. 再次SVD分解，得到特征值第二小的特征向量，及我们需要的最有资金配置
 7.模型复杂的
 8.Maxium drawdown
 9.Benchmarking
+（2） Backtesting Biases
+1.Optimisation Bias
+2.Look-Ahead Bias:Technical Bugs,Parameter Calculation, Maxima/Minima
+3.Survivorship Bias 
+4.Cognitive Bias
 
 
 
-
+四：实盘 living
 
 sklearn import make  构造数据集
 sklearn.metriscs 评价指标
