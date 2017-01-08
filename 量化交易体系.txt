@@ -1,10 +1,11 @@
 核心思想：
 现在的数据量大，所以很多传统的统计学的东西可做可不做
 机器学习能够学到在图表上看不到的高维关系，挖掘的更多的市场信息
-技术分析短期有效长期无效，基本面分析短期无效长期有效，长期谁也说不准，短期的不断迭代就是长期。
+技术分析短期有效长期无效，基本面分析(book value,market cap,intinte discount 三种价值体系)短期无效长期有效，长期谁也说不准，短期的不断迭代就是长期。
 投资组合（portfolio）的理念 
 均值回归怕的图形样例，趋势怕的图形样例
-
+有的时候我们要找的是那些特异的,奇异的,这些跟加可能是异常值.
+CAMP 调节beta让组合market risk为0 ,获得alpha skill超额收益 IR=IC*sqrt(BR)  IR衡量alpha的SR IC 预测准确的相关性  BR 交易机会 这个公式给相对收益增加了SR的概念
 
 任务：
 1. tushare 获取沪深300 的成分股并将这些成分股写入到 postgresql 中
@@ -40,12 +41,13 @@ Plot出每一个time step的真实值和预测值，真实值为蓝色，预测值为红色
 
 
 
-（2）数据重表示 Feature (Long Short Self)  特征是基于不同人的信念的
+（2）数据重表示 Feature (Long Short Self)  特征是基于不同人的信念的,多个TA的叠加好于单个TA,normalization.
 
 http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators
 
 
 （3）Modeling  gridsearch
+模型
 1.SVM
 2.RF  RFR  extratrees regressior
 3.GA  mutation,crossover,fitness 概率方法产生适应概率（核心）,population;基因型，表现型
@@ -56,18 +58,48 @@ http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators
 8.Kernel  核心是与样本点的相似度
 7.异常数据点 类别不平衡（class balanced），可能很重要，这些才是alpha加分项 
 8.降维算法，先用PCA降到50维以内，再用TSNA(流型算法)高效降维
-9.模型指标 adjusted R_squre,AIC,BIC
+模型测度
+1.RMSE
+2.模型指标 adjusted R_squre,AIC,BIC
+3.使用Roll forward Cross validaion 交叉验证集上为避免未来函数需要roll
+4.预测值和真真实值得相关性 np.corrcoef()
 
 
 （4）Ensemble 集成学习 
-voting/blending(stacking) 
+1.针对分类器:voting/blending(stacking) 
 主要思想：4个人每个人都做对做错的（基分类器），那每题都来比较答案做出正确答案
 做法：K折交叉验证
-adaboost
+2.针对样本重采样:bagging
+3.针对错误在学习:adaboost
 理论：理论上可以无限接近1，每次都在错误的样本上重新做分类
 
+
+(5) RL (reinforcement) 加强学习解决MDPs
+由预测价格,涨跌幅度转为预测信号(policy learning)
+1.Environment: Transition  T[s,a,s’] markovdecision马尔科夫过程问题MDPs
+2.Learner: sense(s),think/policy(pi),act(a)
+3.policy: reward(r) R[s,a],Q
+4.experience tuple:(s1,a1,s1’,r1)=(T,R)
+5.Q-learning:
+
+  The formula for computing Q for any state-action pair <s, a>, given an experience tuple <s, a, s', r>, is:
+Q'[s, a] = (1 - α) · Q[s, a] + α · (r + γ · Q[s', argmaxa'(Q[s', a'])])
+  Here:
+       r= R[s, a] is the immediate reward for taking action a in state s, 
+       γ ∈ [0, 1] (gamma) is the discount factor used to progressively reduce the value of future rewards,
+       s' is the resulting next state,
+       argmaxa'(Q[s', a']) is the action that maximizes the Q-value among all possible actions a' from s', and,
+       α ∈ [0, 1] (alpha) is the learning rate used to vary the weight given to new experiences compared with past Q-values.
+
+6.discretization  根据不同特征的分位数将数值转化为分数
+ stepsize=size(data)/steps
+ data.sort()
+ for i in range(0,steps)
+	threshold[i]=data[(i+1)*stepsize]
+7.Dyna-Q
+
 二：基于预测让利益最大化
-（1）风控
+（1）风控  Mean Variance Optimization(MVO)
 Step1.协方差矩阵SVD 分解，在特征值中去掉那些在随机分布（Marchenko-Pastur）一个标准差中的特征值
 Step2.重构对角特征矩阵，
 Step3. 再次SVD分解，得到特征值第二小的特征向量，及我们需要的最有资金配置
@@ -82,7 +114,7 @@ Step3. 再次SVD分解，得到特征值第二小的特征向量，及我们需要的最有资金配置
 三：回测
 (1)指标解读
 1.策略基本假设
-2.SharpRatio
+2.SharpRatio   周期转换;次数转换
 3.杠杆
 4.频率
 5.风险
@@ -90,6 +122,10 @@ Step3. 再次SVD分解，得到特征值第二小的特征向量，及我们需要的最有资金配置
 7.模型复杂的
 8.Maxium drawdown
 9.Benchmarking
+10.期望  期望理论的最大问题是没有考虑到风险 1000刀来一次赌博还是1000次赌博?
+11.破产风险 很多时候我们仅仅求期望并没有考虑到风险,少量多次赌场式获胜.
+12.风报比 及时是单一局也要和多局的对比看看SR 
+13.预测的置信度,可以看给出预测点x的30个最近邻的分散程度.如果都靠在一起那么分数高.但这个是弱预测,可能没有用
 （2） Backtesting Biases
 1.Optimisation Bias
 2.Look-Ahead Bias:Technical Bugs,Parameter Calculation, Maxima/Minima

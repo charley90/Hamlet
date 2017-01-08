@@ -53,3 +53,21 @@ def test_run():
 
 if __name__="__main__":
     test_run()
+
+#分类器的结构化代码
+class  LinRegLearner(object):
+	"""docstring for  LinRegLearner"""
+	def __init__(self, arg):
+		super( LinRegLearner, self).__init__()
+		self.arg = arg
+	def train(X,Y)
+		self.m,self.b=favorit_linreg(X,Y)
+	def query(X)
+		Y=self.m*X+self.b
+		return Y
+
+
+
+
+
+
