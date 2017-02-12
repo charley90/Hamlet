@@ -27,6 +27,14 @@ def get_data(symbols,dates):
     df.fillna(method='ffill',inplace="Ture") #先从前填空缺值，避免未来数据对回测的影响
     df.fillna(method='bfill',inplace="Ture") #再从后填空缺值，应对股票未上市
 
+## 不同市场之间,可能法定假日不一样,所以需要别的合并方法.
+# new = (chinastocks.index | usstocks.index)
+# both = pd.DataFrame(index = new, columns = ['600208.XSHG','FXP.US'])
+# both['600208.XSHG'] = chinastocks['ClosingPx']
+# both['FXP.US'] = usstocks['ClosingPx']
+# both
+
+
 def plot_date(df,title='Stockprices'):
     #自定义画图函数
     ax=df.plot(title=title,fontsize=2)

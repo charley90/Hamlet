@@ -1,20 +1,28 @@
+# -*- coding: utf-8 -*-
 
 import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import tushare as ts
+
+
+_CODE_INDEX = pd.DataFrame({'code':['000001','399001','399006'],'name':['上证指数','深证指数','创业板指数'],'c_name':['指数','指数','指数']})
+code_index = _CODE_INDEX.set_index('code')
+dat = ts.get_industry_classified()
+dat = dat.drop_duplicates('code')
+
+
+#print dat
 
 
 
 
 
 
+#if __name__=="__main__":
 
 
 
 
 
-if __name__="__main__":
-    dates = pd.date_range('2010-01-01', '2016-12-31')  # 时间跨度范围
-    symbols = ['GOOG', 'IBM', 'GLD']  # 股票池
-    df = get_date(symbols, dates)  # 直接取到股票池中指定日期的部件
