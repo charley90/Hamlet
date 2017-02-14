@@ -97,7 +97,8 @@ from sklearn.preprocessing import StandardScaler
 # standardized_X = scaler.transform(X_train)# transform方法是对所有的特征都进行了除了
 StandardScaler().fit_transform(iris.data)  #两步可以合并成一步写
 #1）对数据先fit，再transform，好处是我可以拿到数据变换(比如scaling/幅度变换/标准化)的参数，这样你可以在测试集上也一样做相同的数据变换处理
-#2）fit_trainsform，一次性完成数据的变换(比如scaling/幅度变换/标准化)，比较快。但是如果在训练集和测试集上用fit_trainsform，可能执行的是两套变换标准(因为训练集和测试集幅度不一样)
+#2）fit_trainsform，一次性完成数据的变换(比如scaling/幅度变换/标准化)，比较快。
+# 但是如果在训练集和测试集上用fit_trainsform，可能执行的是两套变换标准(因为训练集和测试集幅度不一样)
 
 
 from sklearn.preprocessing import Normalizer #其通过求z-score的方法，将样本的特征值转换到同一量纲下
@@ -131,7 +132,8 @@ class FeatureUnionExt(FeatureUnion):
     #相比FeatureUnion，多了idx_list参数，其表示每个并行工作需要读取的特征矩阵的列
     def __init__(self, transformer_list, idx_list, n_jobs=1, transformer_weights=None):
         self.idx_list = idx_list
-        FeatureUnion.__init__(self, transformer_list=map(lambda trans:(trans[0], trans[1]), transformer_list), n_jobs=n_jobs, transformer_weights=transformer_weights)
+        FeatureUnion.__init__(self, transformer_list=map(lambda trans:(trans[0], trans[1]), transformer_list), n_jobs=n_jobs,
+                              transformer_weights=transformer_weights)
 
     #由于只部分读取特征矩阵，方法fit需要重构
     def fit(self, X, y=None):
@@ -193,7 +195,8 @@ step2 = ('FeatureUnionExt', FeatureUnionExt(transformer_list=[step2_1, step2_2, 
 
 
 
-#流水线上除最后一个工作以外，其他都要执行fit_transform方法，且上一个工作输出作为下一个工作的输入。最后一个工作必须实现fit方法，输入为上一个工作的输出；但是不限定一定有transform方法，因为流水线的最后一个工作可能是训练！
+#流水线上除最后一个工作以外，其他都要执行fit_transform方法，且上一个工作输出作为下一个工作的输入。最后一个工作必须实现fit方法，输入为上一个工作的输出；
+# 但是不限定一定有transform方法，因为流水线的最后一个工作可能是训练！
 from numpy import log1p
 from sklearn.preprocessing import Imputer
 from sklearn.preprocessing import OneHotEncoder
@@ -276,6 +279,8 @@ model = Lasso() #S1 先建立整个模型
 lasso_model.fit(x_train, y_train) #S3使用模型进行fit
 #model = linear_model.LassoCV() # 可以去尝试不同的参数值 实际用时用 LassoCV 自动找出最好的 alpha
 #model.alpha_ # 自动找出最好的 alpha
+ridge = RidgeCV(alphas=np.logspace(-3, 2, 10), fit_intercept=False) #带有CV自带有参数选择
+
 
 
 #同时进行多个模型测试
@@ -327,10 +332,6 @@ for t in range(4):
 
 
 
-
-
-
-
 #使用管道方法流程化处理 逻辑回归
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -339,17 +340,58 @@ from sklearn.linear_model import LogisticRegression
 lr = Pipeline([('sc', StandardScaler()), ('clf', LogisticRegression())])  #先进行标准化在进行逻辑回归处理
 lr.fit(x, y.ravel()) #y.ravel()是将列向量转置成为行向量
 
+#决策树方法
+from sklearn.tree import DecisionTreeClassifier #引入决策树的方法
+#决策树容易过拟合的原因是深度太深或太浅,本质来说都是leaf节点的样本数目不够所以需要对 分支进行规范
+# min_samples_split = 10：如果该结点包含的样本数目大于10，则(有可能)对其分支
+# min_samples_leaf = 10：若将某结点分支后，得到的每个子结点样本数目都大于10，则完成分支；否则，不进行分支
+model = DecisionTreeClassifier(criterion='entropy', max_depth=6)
+#使用的ID3模式  还可以为gini  mse 使用mse的时候为回归决策树
+#决策树的深度和特征关, 为2^n n为特征列  两个特征的时候可以可视化的展示
+model = model.fit(x_train, y_train)
+y_test_hat = model.predict(x_test)      # 测试数据
 
 
+#决策树的保存
+from sklearn import tree
+import pydotplus  #绘图模块
 
+# 保存
+# dot -Tpng my.dot -o my.png
+# 1、输出
+with open('iris.dot', 'w') as f:  #需要安装graphviz
+    tree.export_graphviz(model, out_file=f)
+# 2、给定文件名
+# tree.export_graphviz(model, out_file='iris.dot')
+# 3、输出为pdf格式
+dot_data = tree.export_graphviz(model, out_file=None, feature_names=iris_feature_E, class_names=iris_class,
+                                filled=True, rounded=True, special_characters=True) #out_file=None 抑制文件输出,结果在下面用
+graph = pydotplus.graph_from_dot_data(dot_data) #graph 为中间件
+graph.write_pdf('iris.pdf')
+f = open('iris.png', 'wb')
+f.write(graph.create_png())
+f.close()
 
+#随机森林
+from sklearn.ensemble import RandomForestClassifier
+clf = RandomForestClassifier(n_estimators=200, criterion='entropy', max_depth=3)
+rf_clf = clf.fit(x, y.ravel())
 
+from sklearn.ensemble import BaggingRegressor #bagging方法是集成学习的一部分
+dtr = DecisionTreeRegressor(max_depth=5) #使用集成的方法对于弱分类器有较好的效果,强分类器提升不大
+BaggingRegressor(dtr, n_estimators=100, max_samples=0.3) #一个决策树,样本又放回抽样率为0.3.这么小为就有了不错的随机性,可以跳出局部最优
 
 
 ##调参数
+
+
+
+
+
 from sklearn.model_selection import GridSearchCV  #CV集调参数
 alpha_can = np.logspace(-3, 2, 10) #调参数的范围 这种方法选择的参数近似于[0.01,0.03.0.1,0.3,1,3.10,30,100]
-lasso_model = GridSearchCV(model, param_grid={'alpha': alpha_can}, cv=5),scoring='accuracy' #S2 选择最优参数建立成精模型  #CV集为5 alpha为选择的范围返回最优的参数模型
+lasso_model = GridSearchCV(model, param_grid={'alpha': alpha_can}, cv=5),scoring='accuracy' #S2 选择最优参数建立成精模型
+# #CV集为5 alpha为选择的范围返回最优的参数模型
 print '超参数：\n', lasso_model.best_params_   #输出选择的最优参数
 
 ##一个调参数案例
@@ -473,3 +515,67 @@ def plot_residuals_and_coeff(resid_train, resid_test, coeff):
     axes[2].set_ylabel("coefficient")
     fig.tight_layout()
     return fig, axes
+
+
+
+N, M = 50, 50  # 横纵各采样多少个值
+x1_min, x1_max = x[:, 0].min(), x[:, 0].max()  # 第0列的范围
+x2_min, x2_max = x[:, 1].min(), x[:, 1].max()  # 第1列的范围
+t1 = np.linspace(x1_min, x1_max, N)
+t2 = np.linspace(x2_min, x2_max, M)
+x1, x2 = np.meshgrid(t1, t2)  # 生成网格采样点
+x_show = np.stack((x1.flat, x2.flat), axis=1)  # 测试点
+print x_show.shape
+
+# # 无意义，只是为了凑另外两个维度 另外一种写法
+# # 打开该注释前，确保注释掉x = x[:, :2]
+# x3 = np.ones(x1.size) * np.average(x[:, 2])
+# x4 = np.ones(x1.size) * np.average(x[:, 3])
+# x_test = np.stack((x1.flat, x2.flat, x3, x4), axis=1)  # 测试点
+
+cm_light = mpl.colors.ListedColormap(['#A0FFA0', '#FFA0A0', '#A0A0FF'])  #浅色背景表示分块区域
+cm_dark = mpl.colors.ListedColormap(['g', 'r', 'b'])  #深色表示样本点
+y_show_hat = model.predict(x_show)  # 预测值
+print y_show_hat.shape
+print y_show_hat
+y_show_hat = y_show_hat.reshape(x1.shape)  # 使之与输入的形状相同
+print y_show_hat
+plt.figure(facecolor='w')  #开始背景色为白色
+plt.pcolormesh(x1, x2, y_show_hat, cmap=cm_light)  # 预测值的显示  用浅色背景色填充分割区域
+print y_test
+print y_test.ravel()
+plt.scatter(x_test[:, 0], x_test[:, 1], c=y_test.ravel(), edgecolors='k', s=120, cmap=cm_dark, marker='*')  # 用星号深色表示测试集
+plt.scatter(x[:, 0], x[:, 1], c=y.ravel(), edgecolors='k', s=40, cmap=cm_dark)  # 全部数据 用深色填充
+plt.xlabel(iris_feature[0], fontsize=15)
+plt.ylabel(iris_feature[1], fontsize=15)
+plt.xlim(x1_min, x1_max)
+plt.ylim(x2_min, x2_max)
+plt.grid(True)
+plt.title(u'鸢尾花数据的决策树分类', fontsize=17)
+plt.show()
+
+
+
+
+
+
+
+# 过拟合：错误率 错误率作图
+depth = np.arange(1, 15)  #设置树的深度
+err_list = []  #构建数组存放错误率
+for d in depth:
+    clf = DecisionTreeClassifier(criterion='entropy', max_depth=d)
+    clf = clf.fit(x_train, y_train)
+    y_test_hat = clf.predict(x_test)  # 测试数据
+    result = (y_test_hat == y_test)  # True则预测正确，False则预测错误
+    err = 1 - np.mean(result)
+    err_list.append(err)
+    # print d, ' 准确度: %.2f%%' % (100 * err)
+    print d, ' 错误率: %.2f%%' % (100 * err)
+plt.figure(facecolor='w')
+plt.plot(depth, err_list, 'ro-', lw=2)
+plt.xlabel(u'决策树深度', fontsize=15)
+plt.ylabel(u'错误率', fontsize=15)
+plt.title(u'决策树深度与过拟合', fontsize=17)
+plt.grid(True)
+plt.show()
