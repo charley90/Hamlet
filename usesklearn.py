@@ -26,8 +26,12 @@ import warnings
 warnings.filterwarnings("ignore") # 屏蔽掉讨厌的警告
 
 ##使用CSV读取数据
+def iris_type(s):
+    it = {'Iris-setosa': 0, 'Iris-versicolor': 1, 'Iris-virginica': 2}
+    return it[s]
+
 path = '10.Advertising.csv'  # 设置文件路径,因为在一个包内优先会检查本地的
-data = pd.read_csv(path) #header=None
+data = pd.read_csv(path, dtype=float, delimiter=',', converters={4: iris_type}) #header=None
 x = data[['TV', 'Radio']] #df.values[:, :-1]
 y = data['Sales'] #df.values[:, -1]
 
@@ -67,6 +71,9 @@ y = enc.transform(y)
 print enc.classes_
 
 #使用pandas 转换哑变量  转换哑变量会变成多列和标签编码方式是不同的
+#哑变量处理 最重要的原因,数据可乘性   0.5*2(红色)=1(绿色) 就非常不合适了,分成多列,一般用于类型数据非序列编码类型
+#onehot 编码 类型数据的多项化(PolynomialFeatures).特征为啥多的原因. 稀疏数据的存储 记做64:1 第64个特征为1
+#3个特征用两个!!!这样子做可以避免列之间的相关性. 性别数据只有0,1 似乎也可以不分0*n=0吧
 input_df.Sex = input_df.Sex.map({"male": 1, "female": 0}) # 首先做个映射 类似于上面的标签编码
 dummies_Sex = pd.get_dummies(input_df['Sex'], prefix= 'Sex') #将性别列转换成哑变量
 dummies_Pclass = pd.get_dummies(input_df['Pclass'], prefix= 'Pclass')
@@ -81,6 +88,8 @@ OneHotEncoder().fit_transform(iris.target.reshape((-1,1)))
 
 
 #处理缺失值
+#重要的数据可以建模预测,如泰坦尼克号生存预测中的年龄,可否用姓名中的信息等建立模型预测可能比用整个船舱的平均年龄估计要好
+#重要性高的,也可以通过业务逻辑,或经验预估
 from sklearn.preprocessing import Imputer
 Imputer().fit_transform(vstack((array([nan, nan, nan, nan]), iris.data)))
 # imp = Imputer(missing_values=0, strategy='mean', axis=0)
@@ -268,7 +277,7 @@ RFE(estimator=LogisticRegression(), n_features_to_select=2).fit_transform(iris.d
 
 
 
-##建模
+##建模  模型就是那些普世的通用性的方法
 #线性回归
 from sklearn.linear_model import LinearRegression     #线性回归模型
 linreg = LinearRegression()
@@ -280,6 +289,12 @@ lasso_model.fit(x_train, y_train) #S3使用模型进行fit
 #model = linear_model.LassoCV() # 可以去尝试不同的参数值 实际用时用 LassoCV 自动找出最好的 alpha
 #model.alpha_ # 自动找出最好的 alpha
 ridge = RidgeCV(alphas=np.logspace(-3, 2, 10), fit_intercept=False) #带有CV自带有参数选择
+lr = LogisticRegression(penalty='l2') #带有l2正则项的逻辑回归
+penalty = {
+    0: 5,
+    1: 1
+}
+lr = LogisticRegression(class_weight=penalty) #解决类别不平衡问题 降采样
 
 
 
@@ -380,6 +395,18 @@ rf_clf = clf.fit(x, y.ravel())
 from sklearn.ensemble import BaggingRegressor #bagging方法是集成学习的一部分
 dtr = DecisionTreeRegressor(max_depth=5) #使用集成的方法对于弱分类器有较好的效果,强分类器提升不大
 BaggingRegressor(dtr, n_estimators=100, max_samples=0.3) #一个决策树,样本又放回抽样率为0.3.这么小为就有了不错的随机性,可以跳出局部最优
+
+
+##GBDT
+from sklearn.ensemble import GradientBoostingRegressor
+params = {'n_estimators': 500, 'max_depth': 4, 'min_samples_split': 2,
+          'learning_rate': 0.01, 'loss': 'ls'}
+clf = GradientBoostingRegressor(**params)
+
+
+
+
+
 
 
 ##调参数
