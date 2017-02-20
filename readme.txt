@@ -24,3 +24,75 @@ Hamlet 项目为测试性量化投资项目.
 #TODO: 使用ricequant的回测平台回测自己策略:1资金曲线图的解读
 #TODO: 将模型作为包导入到ricequant 上面作为信号源输出,发送微信信号,发送到雪球持仓.
 
+
+
+
+
+##Quantopian
+— 可以做空
+— 如果不检查仓位,仓位满后会融资操作
+- 在个bar跑的时候使用recode来追踪指定的指标,如leveage
+- schedule_founction (fuc,date_rulse,time_rules.market_opne(hours=1))定期操作
+- 有较习惯的动态展示页面
+- fromquantopian.pipeline.filters.morningstar importQ1500US 从moringstar导入
+- 元数据使用的blaze
+- Pipeline  用于得到复合索引的一种方法
+from quantopian.pipeline import Pipeline
+def make_pipeline():
+	return Pipeline()
+from quantopian.research import run_pipeline
+
+result=run_pipeline(make_pipeline(),sd,ed)
+- alphalens 做因子分析 tearsheet
+import alphalens
+alphalens.tears.create_factor_tear_sheet(factor=result[‘sentiment’],
+								price=pricing,
+								quantiles=2,
+								periods=(1,5,10))
+factor 需要传入复合索引的序列值
+详细解释显示tearsheet图表的含义 https://www.youtube.com/watch?v=BCLgXjxYONg
+- 将因子联合使用
+- 将因子运用于回测之中
+- research 中调用回测结果
+ bt=get_backtest(’回测哈希码’)
+bt.create_full_tear_sheet()
+
+##使用 IBpy
+#使用IBpy进行实盘交易 https://www.youtube.com/watch?v=Bu0kpU-ozaw
+github.com/blampe/IbPy
+from ib.opt import Connection,message
+from ib.ext.Contract import Contract
+from ib.ext.Order import Order
+
+def make_contract(symbol,sec_type,exch,prim_exch,curr):
+	Contract.m_symbol=symbol
+	Contract.m_secType=sec_type
+	Contract.m_primaryExch=prim_exch
+	Contract.m_currency=curr
+	return Contract
+def make_under(action,quantity,price=None):
+	if price is not None:
+		order=Order()
+		order.m_orderType=‘LMT’
+		order.m_totalQuantity=quantity
+		order_m_action=action
+		order.m_lmtPrice=price
+	else:
+		order=Order()
+		order.m_orderType=‘MKT’
+		order.m_totalQuantity=quantity
+		order_m_action=action
+	return order
+
+def main():
+	conn=Connection.create(port=,clientId=)
+	conn.connect()
+
+	oid=1
+	cont=make_contract(‘tSLA’,’STK’,’’SMART,’SMART’,’USD’)
+	offer=make_order(‘BUY’,1,200)
+
+      	conn.PlaceOrder(oid,cont,offer)
+	conn.disconnect()
+
+## 使用IBridgePy  在Spyder中进行实盘交易

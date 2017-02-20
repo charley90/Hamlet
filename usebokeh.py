@@ -238,6 +238,55 @@ show(Dot(decades,values=b,label=‘country’,line_color=‘year’)) #点图 �
 #点图是对类别数据使用的, 散点是对连续数据
 
 
+
+## 绘制K线图
+inc = df.close > df.open
+dec = df.open > df.close
+w = 12*60*60*1000 # half day in ms
+
+TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
+
+p = figure(x_axis_type="datetime", tools=TOOLS, plot_width=1000, title = "MSFT Candlestick")
+p.xaxis.major_label_orientation = pi/4
+p.grid.grid_line_alpha=0.3
+
+p.segment(df.date, df.high, df.date, df.low, color="black")
+p.vbar(df.date[inc], w, df.open[inc], df.close[inc], fill_color="#D5E1DD", line_color="black")
+p.vbar(df.date[dec], w, df.open[dec], df.close[dec], fill_color="#F2583E", line_color="black")
+
+output_file("candlestick.html", title="candlestick.py example")
+
+
+##绘制热力图
+
+source = ColumnDataSource(
+    data=dict(month=month, year=year, color=color, rate=rate)
+)
+
+TOOLS = "resize,hover,save,pan,box_zoom,wheel_zoom"
+
+p = figure(title="US Unemployment (1948 - 2013)",
+           x_range=years, y_range=list(reversed(months)),
+           x_axis_location="above", plot_width=900, plot_height=400,
+           toolbar_location="left", tools=TOOLS)
+
+p.grid.grid_line_color = None
+p.axis.axis_line_color = None
+p.axis.major_tick_line_color = None
+p.axis.major_label_text_font_size = "5pt"
+p.axis.major_label_standoff = 0
+p.xaxis.major_label_orientation = pi/3
+
+p.rect("year", "month", 1, 1, source=source,
+       color="color", line_color=None)
+
+p.select_one(HoverTool).tooltips = [
+    ('date', '@month @year'),
+    ('rate', '@rate'),
+]
+
+
+
 ###server
 ## 互动操作
 import numpy as np
