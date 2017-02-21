@@ -390,6 +390,8 @@ f.close()
 #随机森林
 from sklearn.ensemble import RandomForestClassifier
 clf = RandomForestClassifier(n_estimators=200, criterion='entropy', max_depth=3)
+rfc = RandomForestClassifier(100, criterion='gini', min_samples_split=2,
+                             min_impurity_split=1e-10, bootstrap=True, oob_score=True) #OOB是边跑边测的准确率
 rf_clf = clf.fit(x, y.ravel())
 
 from sklearn.ensemble import BaggingRegressor #bagging方法是集成学习的一部分
@@ -407,6 +409,27 @@ clf = GradientBoostingRegressor(**params)
 
 
 
+## SVM
+from sklearn import svm
+
+clf = svm.SVC(C=0.1, kernel='linear', decision_function_shape='ovr')
+clf = svm.SVC(C=0.8, kernel='rbf', gamma=20, decision_function_shape='ovr',class_weight={-1: 1, 1: 10})
+# c为松弛系数 越大拟合越好,泛化越差,kernel为核函数,gamma为因子 越大样本越独立,多输出问题:ovr为onevsrest,ovo为onevsone,class_weight解决类别不平衡问题
+clf.fit(x_train, y_train.ravel())
+
+clf.decision_function(grid_test)    # 样本到决策面的距离
+clf.n_support_ #支撑向量的数目
+clf.dual_coef_ #支撑向量的系数
+clf.support_ #支撑向量
+
+params = {'C': np.logspace(0, 3, 7), 'gamma': np.logspace(-5, 0, 11)}
+# model = GridSearchCV(svm.SVC(kernel='rbf'), param_grid=params, cv=3)
+svr.best_estimator_.support_  #最有估计的支撑向量序号方便标出
+
+
+svr_rbf = svm.SVR(kernel='rbf', gamma=0.2, C=100)
+svr_linear = svm.SVR(kernel='linear', C=100)
+svr_poly = svm.SVR(kernel='poly', degree=3, C=100)
 
 
 ##调参数
@@ -496,6 +519,16 @@ print metrics.precision_score(y_test,y_pred) # TP/(TP+FP)
 print metrics.recall_score(y_test,y_pred)  # TP/(TP+FN)
 print metrics.f1_score
 
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score, recall_score, f1_score, fbeta_score
+from sklearn.metrics import precision_recall_fscore_support, classification_report
+
+print 'Accuracy：\t', accuracy_score(y_true, y_hat)
+print 'Precision:\t', precision
+print 'Recall:  \t', recall
+print 'f1 score: \t', f1_score(y_true, y_hat)
+print precision_recall_fscore_support(y_true, y_hat, beta=1)
+print classification_report(y_true, y_hat)
 
 
 # 评估不同模型在训练样本比例不同的表现
