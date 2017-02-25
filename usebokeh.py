@@ -24,7 +24,7 @@ layout = gridplot([[s1, s2, s3]], toolbar_location=None)
 
 
 ### Model
-## column data sourse   cds 在数据交互中非常有用处  不用这个仅仅是图表层面的共享交互 可以是数据列表的列,也可以死映射关系             #cds 数据交互的最底层
+## column data sourse   cds 在数据交互中非常有用处  不用这个仅仅是图表层面的共享交互 可以是数据列表的列,也可以是映射关系             #cds 数据交互的最底层
 from bokeh.models import ColumDataSource
 source=ColumnDataSource(df)
 new_data={’x’:[],’y’:[]}  #推荐用这种形式来生成数据
@@ -41,7 +41,7 @@ source = ColumnDataSource(data=dict(
             )
          )
 
-hover = HoverTool(tooltips=[                                                                                            #也可以导入各种heml的样式文件
+hover = HoverTool(tooltips=[                                                                                            #也可以导入各种html的样式文件
             ("index", "$index"),
             ("(x,y)", "($x, $y)"),
             ("desc", "@desc"),
@@ -120,7 +120,7 @@ p.add_layout(color_bar, 'right') #显示颜色指示
 ###Plot
 ##figure
 from bokeh.plotting import  figure
-p1 =  figure(plot_width=300, tools='pan,box_zoom ’, title=‘name’ , x_axis_type="datetime")                              #x 轴是时间
+p1 =  figure(plot_width=300, tools='pan,box_zoom ’, title=‘name’ , x_axis_type="datetime")                              # x轴是时间
 p2 =  figure(plot_width=300, plot_height=300,x_range=(0, 8), y_range=(0, 8))
 p3 =  figure(x_axis_label='year', y_axis_label='mpg',toolbar_location='above)
 
@@ -206,7 +206,9 @@ show(scartter)
 
 p = Bar(autompg, label='yr', values='mpg', agg='median', group='origin',  title="Median MPG by YR, grouped by ORIGIN",  #group by
         legend='top_left', tools='crosshair')                                                                           #agg 函数
+
                                                                                                                         #group 可以换成stack
+
 
 hist = Histogram(df, values='value', bins=30)#直方图 bins特有属性
 

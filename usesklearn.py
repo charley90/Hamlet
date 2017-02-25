@@ -11,19 +11,40 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-
-
-
-
-
+import sklearn.datasets as ds
 #from matplotlib import rcParams
 #rcParams.update({'font.family': 'sans-serif', 'font.sans-serif': [u'STHeitiSC-Light']})
 mpl.rcParams['font.sans-serif'] = [u'Hei'] #绘图中的中文问题
 mpl.rcParams['axes.unicode_minus'] = False
 
+
 ##屏蔽掉警告的操作
 import warnings
 warnings.filterwarnings("ignore") # 屏蔽掉讨厌的警告
+
+
+
+
+
+##生成样本
+
+N = 400
+centers = 4
+data, y = ds.make_blobs(N, n_features=2, centers=centers, random_state=2)# 生成聚类中心为centers,特征维度为2维的样本400个,随机数种子2
+data2, y2 = ds.make_blobs(N, n_features=2, centers=centers, cluster_std=(1, 2.5, 0.5, 2), random_state=2)# 指定了方差不相同
+data3 = np.vstack((data[y == 0][:], data[y == 1][:50], data[y == 2][:20], data[y == 3][:5]))
+y3 = np.array([0] * 100 + [1] * 50 + [2] * 20 + [3] * 5) # 构造了不平衡样本
+
+m = np.array(((1, 1), (1, 3)))
+data_r = data.dot(m) #构造旋转后的样本
+
+centers = [[1, 2], [-1, -1], [1, -1], [-1, 1]] #指定聚类中心
+data, y = ds.make_blobs(N, n_features=2, centers=centers, cluster_std=[0.5, 0.25, 0.7, 0.5], random_state=0)
+
+
+# 构造了不平衡样本
+
+
 
 ##使用CSV读取数据
 def iris_type(s):
@@ -432,9 +453,118 @@ svr_linear = svm.SVR(kernel='linear', C=100)
 svr_poly = svm.SVR(kernel='poly', degree=3, C=100)
 
 
+
+##Kmeans
+from sklearn.cluster import KMeans
+cls = KMeans(n_clusters=4, init='k-means++')
+#关键的问题一个是类别数目的选择可能用canopy,还有初始化的规则.另外使用谱聚类开始做下维度优化
+y_hat = cls.fit_predict(data)
+#在正态分布数据,类圆,均方差上面表现较好 ,对于异常点没有什么好办法
+
+
+## AP 吸引子模型
+from sklearn.cluster import AffinityPropagation
+from sklearn.metrics import euclidean_distances
+
+m = euclidean_distances(data, squared=True) #计算点与点之间的欧拉距离
+preference = -np.median(m) #用聚类的中位数数作为吸引的参数值 比较平均
+
+plt.figure(figsize=(12, 9), facecolor='w')
+    for i, mul in enumerate(np.linspace(1, 4, 9)):
+        print mul
+        p = mul * preference #吸引子这种超参数应该如何调整,这个例子给了一个方法,先用某个均值,然后在用一个附件的系数来调节.非常重要
+        model = AffinityPropagation(affinity='euclidean', preference=p)
+        af = model.fit(data)
+        center_indices = af.cluster_centers_indices_  #显示类别的数目
+        n_clusters = len(center_indices)
+        print ('p = %.1f' % mul), p, '聚类簇的个数为：', n_clusters
+        y_hat = af.labels_ #显示序列类别的标签
+
+        plt.subplot(3, 3, i+1)
+        plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
+        clrs = []
+        for c in np.linspace(16711680, 255, n_clusters): #聚类是开始类别不知道,构造调色盘
+            clrs.append('#%06x' % c)
+        # clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
+        for k, clr in enumerate(clrs):
+            cur = (y_hat == k)
+            plt.scatter(data[cur, 0], data[cur, 1], c=clr, edgecolors='none')
+            center = data[center_indices[k]]
+            for x in data[cur]:
+                plt.plot([x[0], center[0]], [x[1], center[1]], color=clr, zorder=1)
+        plt.scatter(data[center_indices, 0], data[center_indices, 1], s=100, c=clrs, marker='*', edgecolors='k', zorder=2) #聚类中心用星型表示
+        plt.grid(True)
+    plt.tight_layout()
+    plt.suptitle(u'AP聚类', fontsize=20)
+    plt.subplots_adjust(top=0.92)
+    plt.show()
+
+
+##meanshift和K-means都属于中心迭代的方法,不过这种是指定了一个半径,然后不断向密度中心移动的办法
+m = euclidean_distances(data, squared=True)
+bw = np.median(m) #同样实用均值的办法来构造开始的点
+for i, mul in enumerate(np.linspace(0.1, 0.4, 4)):
+    band_width = mul * bw  #模型的均值距离以此为表征
+    model = MeanShift(bin_seeding=True, bandwidth=band_width)
+    ms = model.fit(data)
+    centers = ms.cluster_centers_
+    y_hat = ms.labels_
+    n_clusters = np.unique(y_hat).size
+    print '带宽：', mul, band_width, '聚类簇的个数为：', n_clusters
+
+    plt.subplot(2, 2, i + 1)
+    plt.title(u'带宽：%.2f，聚类簇的个数为：%d' % (band_width, n_clusters))
+    clrs = []
+    for c in np.linspace(16711680, 255, n_clusters):
+        clrs.append('#%06x' % c)
+    # clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
+    print clrs
+    for k, clr in enumerate(clrs):
+        cur = (y_hat == k)
+        plt.scatter(data[cur, 0], data[cur, 1], c=clr, edgecolors='none')
+    plt.scatter(centers[:, 0], centers[:, 1], s=150, c=clrs, marker='*', edgecolors='k')
+    plt.grid(True)
+plt.tight_layout(2)
+plt.suptitle(u'MeanShift聚类', fontsize=20)
+plt.subplots_adjust(top=0.92)
+plt.show()
+
+
+##DBSCAN  密度聚类的典型方法,比较适用于地图等不均匀,不规则图形,要求内部致密性比较好
+from sklearn.cluster import DBSCAN
+params = ((0.5, 3), (0.5, 5), (0.5, 10), (1., 3), (1., 10), (1., 20))
+for i in range(6):
+    eps, min_samples = params[i]  # eps 为条件密集可达的半径 min_samples 为在这个密度类要求的最小的点的个数
+    model = DBSCAN(eps=eps, min_samples=min_samples)
+    model.fit(data)
+    y_hat = model.labels_#序列的标签
+    y_unique = np.unique(y_hat)
+    n_clusters = y_unique.size - (1 if -1 in y_hat else 0)  # -1表示的是噪音点
+    print y_unique, '聚类簇的个数为：', n_clusters
+
+
+
+##SC 谱聚类 谱聚类开始用随机游走的思想圈定特征处理后的样本集,然后在处理后的样本集上做K-means 能够除了较特殊的
+from sklearn.cluster import spectral_clustering
+n_clusters = 3
+m = euclidean_distances(data, squared=True)
+sigma = np.median(m)
+for i, s in enumerate(np.logspace(-2, 0, 6)):
+    print s
+    af = np.exp(-m ** 2 / (s ** 2)) + 1e-6  #RBF做映射,高斯相似度,后面的1e-6是为了避免0值出现
+    y_hat = spectral_clustering(af, n_clusters=n_clusters, assign_labels='kmeans', random_state=1)
+
+
+
 ##调参数
 
+#调参数的思想
+m = euclidean_distances(data, squared=True) #计算点与点之间的欧拉距离
+preference = -np.median(m) #用聚类的中位数数作为吸引的参数值 比较平均
 
+for i, mul in enumerate(np.linspace(1, 4, 9)):
+    print mul
+    p = mul * preference #吸引子这种超参数应该如何调整,这个例子给了一个方法,先用某个均值,然后在用一个附件的系数来调节.非常重要
 
 
 
@@ -552,6 +682,14 @@ for n, train_size in enumerate(train_size_vec): #循环训练集样本的大小�
         cm_diags[:, n, m] = metrics.confusion_matrix(y_test, y_test_pred).diagonal()
         cm_diags[:, n, m] /= np.bincount(y_test)
 
+# 聚类效果 都是在有标签模型下面做的
+from sklearn import metrics
+
+h = metrics.homogeneity_score(y, y_hat) #同一性(Homogeneity)
+c = metrics.completeness_score(y, y_hat) #完整性(Completeness)
+v = metrics.v_measure_score(y, y_hat) #V-Measure
+
+ari = metrics.adjusted_rand_score(y, y_hat) #ARI 指数
 
 
 
@@ -586,6 +724,8 @@ t2 = np.linspace(x2_min, x2_max, M)
 x1, x2 = np.meshgrid(t1, t2)  # 生成网格采样点
 x_show = np.stack((x1.flat, x2.flat), axis=1)  # 测试点
 print x_show.shape
+
+
 
 # # 无意义，只是为了凑另外两个维度 另外一种写法
 # # 打开该注释前，确保注释掉x = x[:, :2]
@@ -639,3 +779,37 @@ plt.ylabel(u'错误率', fontsize=15)
 plt.title(u'决策树深度与过拟合', fontsize=17)
 plt.grid(True)
 plt.show()
+
+# 3D作图
+import matplotlib
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+fig = plt.figure(1, facecolor='w')
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(d[1], d[0], d[2], c='r', s=100*density, marker='o', depthshade=True)
+ax.set_xlabel(u'红色分量')
+ax.set_ylabel(u'绿色分量')
+ax.set_zlabel(u'蓝色分量')
+plt.title(u'图像颜色三维频数分布', fontsize=20)
+
+#使用调色盘表征不同的类别
+
+cm = matplotlib.colors.ListedColormap(list('rgbm')) #调色盘设置 聚类有标签可以直接用标签
+
+clrs = plt.cm.Spectral(np.linspace(0, 0.8, n_clusters))
+
+plt.subplot(3, 3, i + 1)
+plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
+clrs = []
+for c in np.linspace(16711680, 255, n_clusters):  # 聚类时开始类别数不知道,构造调色盘
+    clrs.append('#%06x' % c)
+# clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
+for k, clr in enumerate(clrs):
+    cur = (y_hat == k)
+    plt.scatter(data[cur, 0], data[cur, 1], c=clr, edgecolors='none')
+    center = data[center_indices[k]]
+    for x in data[cur]:
+        plt.plot([x[0], center[0]], [x[1], center[1]], color=clr, zorder=1)
+plt.scatter(data[center_indices, 0], data[center_indices, 1], s=100, c=clrs, marker='*', edgecolors='k', zorder=2)
+#聚类中心用星型表示
+plt.grid(True)
