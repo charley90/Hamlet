@@ -42,7 +42,7 @@ centers = [[1, 2], [-1, -1], [1, -1], [-1, 1]] #指定聚类中心
 data, y = ds.make_blobs(N, n_features=2, centers=centers, cluster_std=[0.5, 0.25, 0.7, 0.5], random_state=0)
 
 
-# 构造了不平衡样本
+
 
 
 
@@ -428,8 +428,6 @@ clf = GradientBoostingRegressor(**params)
 
 
 
-
-
 ## SVM
 from sklearn import svm
 
@@ -462,44 +460,6 @@ y_hat = cls.fit_predict(data)
 #在正态分布数据,类圆,均方差上面表现较好 ,对于异常点没有什么好办法
 
 
-## AP 吸引子模型
-from sklearn.cluster import AffinityPropagation
-from sklearn.metrics import euclidean_distances
-
-m = euclidean_distances(data, squared=True) #计算点与点之间的欧拉距离
-preference = -np.median(m) #用聚类的中位数数作为吸引的参数值 比较平均
-
-plt.figure(figsize=(12, 9), facecolor='w')
-    for i, mul in enumerate(np.linspace(1, 4, 9)):
-        print mul
-        p = mul * preference #吸引子这种超参数应该如何调整,这个例子给了一个方法,先用某个均值,然后在用一个附件的系数来调节.非常重要
-        model = AffinityPropagation(affinity='euclidean', preference=p)
-        af = model.fit(data)
-        center_indices = af.cluster_centers_indices_  #显示类别的数目
-        n_clusters = len(center_indices)
-        print ('p = %.1f' % mul), p, '聚类簇的个数为：', n_clusters
-        y_hat = af.labels_ #显示序列类别的标签
-
-        plt.subplot(3, 3, i+1)
-        plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
-        clrs = []
-        for c in np.linspace(16711680, 255, n_clusters): #聚类是开始类别不知道,构造调色盘
-            clrs.append('#%06x' % c)
-        # clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
-        for k, clr in enumerate(clrs):
-            cur = (y_hat == k)
-            plt.scatter(data[cur, 0], data[cur, 1], c=clr, edgecolors='none')
-            center = data[center_indices[k]]
-            for x in data[cur]:
-                plt.plot([x[0], center[0]], [x[1], center[1]], color=clr, zorder=1)
-        plt.scatter(data[center_indices, 0], data[center_indices, 1], s=100, c=clrs, marker='*', edgecolors='k', zorder=2) #聚类中心用星型表示
-        plt.grid(True)
-    plt.tight_layout()
-    plt.suptitle(u'AP聚类', fontsize=20)
-    plt.subplots_adjust(top=0.92)
-    plt.show()
-
-
 ##meanshift和K-means都属于中心迭代的方法,不过这种是指定了一个半径,然后不断向密度中心移动的办法
 m = euclidean_distances(data, squared=True)
 bw = np.median(m) #同样实用均值的办法来构造开始的点
@@ -530,6 +490,19 @@ plt.subplots_adjust(top=0.92)
 plt.show()
 
 
+
+##SC 谱聚类 谱聚类开始用随机游走的思想圈定特征处理后的样本集,然后在处理后的样本集上做K-means 能够除了较特殊的
+from sklearn.cluster import spectral_clustering
+n_clusters = 3
+m = euclidean_distances(data, squared=True)
+sigma = np.median(m)
+for i, s in enumerate(np.logspace(-2, 0, 6)):
+    print s
+    af = np.exp(-m ** 2 / (s ** 2)) + 1e-6  #RBF做映射,高斯相似度,后面的1e-6是为了避免0值出现
+    y_hat = spectral_clustering(af, n_clusters=n_clusters, assign_labels='kmeans', random_state=1)
+
+
+
 ##DBSCAN  密度聚类的典型方法,比较适用于地图等不均匀,不规则图形,要求内部致密性比较好
 from sklearn.cluster import DBSCAN
 params = ((0.5, 3), (0.5, 5), (0.5, 10), (1., 3), (1., 10), (1., 20))
@@ -543,17 +516,43 @@ for i in range(6):
     print y_unique, '聚类簇的个数为：', n_clusters
 
 
+## AP 吸引子模型
+from sklearn.cluster import AffinityPropagation
+from sklearn.metrics import euclidean_distances
 
-##SC 谱聚类 谱聚类开始用随机游走的思想圈定特征处理后的样本集,然后在处理后的样本集上做K-means 能够除了较特殊的
-from sklearn.cluster import spectral_clustering
-n_clusters = 3
-m = euclidean_distances(data, squared=True)
-sigma = np.median(m)
-for i, s in enumerate(np.logspace(-2, 0, 6)):
-    print s
-    af = np.exp(-m ** 2 / (s ** 2)) + 1e-6  #RBF做映射,高斯相似度,后面的1e-6是为了避免0值出现
-    y_hat = spectral_clustering(af, n_clusters=n_clusters, assign_labels='kmeans', random_state=1)
+m = euclidean_distances(data, squared=True)  # 计算点与点之间的欧拉距离
+preference = -np.median(m)  # 用聚类的中位数数作为吸引的参数值 比较平均
 
+plt.figure(figsize=(12, 9), facecolor='w')
+for i, mul in enumerate(np.linspace(1, 4, 9)):
+    print mul
+    p = mul * preference  # 吸引子这种超参数应该如何调整,这个例子给了一个方法,先用某个均值,然后在用一个附件的系数来调节.非常重要
+    model = AffinityPropagation(affinity='euclidean', preference=p)
+    af = model.fit(data)
+    center_indices = af.cluster_centers_indices_  # 显示类别的数目
+    n_clusters = len(center_indices)
+    print ('p = %.1f' % mul), p, '聚类簇的个数为：', n_clusters
+    y_hat = af.labels_  # 显示序列类别的标签
+
+    plt.subplot(3, 3, i + 1)
+    plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
+    clrs = []
+    for c in np.linspace(16711680, 255, n_clusters):  # 聚类是开始类别不知道,构造调色盘
+        clrs.append('#%06x' % c)
+    # clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
+    for k, clr in enumerate(clrs):
+        cur = (y_hat == k)
+        plt.scatter(data[cur, 0], data[cur, 1], c=clr, edgecolors='none')
+        center = data[center_indices[k]]
+        for x in data[cur]:
+            plt.plot([x[0], center[0]], [x[1], center[1]], color=clr, zorder=1)
+    plt.scatter(data[center_indices, 0], data[center_indices, 1], s=100, c=clrs, marker='*', edgecolors='k',
+                zorder=2)  # 聚类中心用星型表示
+    plt.grid(True)
+plt.tight_layout()
+plt.suptitle(u'AP聚类', fontsize=20)
+plt.subplots_adjust(top=0.92)
+plt.show()
 
 
 ##调参数
@@ -691,6 +690,9 @@ v = metrics.v_measure_score(y, y_hat) #V-Measure
 
 ari = metrics.adjusted_rand_score(y, y_hat) #ARI 指数
 
+# 聚类效果在无标签模型下面
+silhouette=metrics.silhouette_score(X,kmeans_model.lables_,metric='euclidean')
+#轮廓系数, 因为是无标签模型,所以使用原始的特征和聚类后的标签,使用欧拉距离作为衡量
 
 
 

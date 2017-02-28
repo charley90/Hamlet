@@ -11,13 +11,12 @@ loans_2007 = pd.read_csv('LoanStats3a.csv', skiprows=1)
 
 
 ## 手动  多次使用的数据查看
-print(loans.info()) #最终的要求为所有特征 1不为空 2数据格式
+print(loans.info()) #最终的要求为所有特征 1不为空 2数据格式 最终的查看
 print(loans_2007.shape[1])#查询有多少cloumn
 print(loans_2007.iloc[0]) #查询cloumn的名称
 print(loans_2007.isnull().sum()) #汇总看看每列空值的情况 根据重要性和缺失性进行处理
-print(loans_2007['loan_status'].value_counts()) #查询cat类别,object类别字段的详细情况
 print(loans.select_dtypes(include=["object"]).iloc[0]) #查询object类型(混合格式)的情况
-
+print(loans_2007['loan_status'].value_counts()) #查询cat类别,object类别字段的详细情况
 
 
 ## 自动 删除缺失数据太多的列
@@ -114,6 +113,7 @@ loans_2007 = loans_2007.replace(mapping_dict)  #复合格式字典替换
 loans["int_rate"] = loans["int_rate"].str.rstrip("%").astype("float")  #字符转化
 loans["revol_util"] = loans["revol_util"].str.rstrip("%").astype("float")
 #时间序列转换
+  ##主要将时间序列转换成距离今天的值,时期数据转换成数值
 
 
 
@@ -132,7 +132,7 @@ cat_columns = ["home_ownership", "verification_status", "emp_length", "purpose",
 dummy_df = pd.get_dummies(loans_2007[cat_columns]) #生成哑变量
 loans_2007 = pd.concat([loans_2007, dummy_df], axis=1) #列向拼接哑变量
 loans_2007 = loans_2007.drop(cat_columns, axis=1)
-loans = loans.drop("pymnt_plan", axis=1)
+loans_2007 = loans_2007.drop("pymnt_plan", axis=1)
 
 embarked_data = pd.get_dummies(data.Embarked)
 embarked_data = embarked_data.rename(columns=lambda x: 'Embarked_' + str(x))
@@ -150,7 +150,11 @@ import numpy as np
 
 ## 数据集
 from sklearn.model_selection import train_test_split   # cross_validation
-x, y = np.split(data, (4,), axis=1)
+#x, y = np.split(data, (4,), axis=1)
+cols = loans.columns
+train_cols = cols.drop("loan_status")
+features = loans[train_cols]
+target = loans["loan_status"]
 x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=1, test_size=50)
 data_train = xgb.DMatrix(x_train, label=y_train)
 data_test = xgb.DMatrix(x_test, label=y_test)
@@ -210,14 +214,52 @@ n_round = 3  # 3棵决策树
 # bst = xgb.train(param, data_train, num_boost_round=n_round, evals=watchlist)
 bst = xgb.train(param, data_train, num_boost_round=n_round, evals=watchlist, obj=log_reg, feval=error_rate) #添加了损失函数的梯度,和错误的评估方法
 
+#
+# 这里要重点讲一下 Xgboost 的调参。通常认为对它性能影响较大的参数有：
+#
+# eta：每次迭代完成后更新权重时的步长。越小训练越慢。
+# num_round：总共迭代的次数。
+# subsample：训练每棵树时用来训练的数据占全部的比例。用于防止 Overfitting。
+# colsample_bytree：训练每棵树时用来训练的特征的比例，类似 RandomForestClassifier 的 max_features。
+# max_depth：每棵树的最大深度限制。与 Random Forest 不同，Gradient Boosting 如果不对深度加以限制，最终是会 Overfit 的。
+# early_stopping_rounds：用于控制在 Out Of Sample 的验证集上连续多少个迭代的分数都没有提高后就提前终止训练。用于防止 Overfitting。
+# 一般的调参步骤是：
+# 1将训练数据的一部分划出来作为验证集。
+# 2先将 eta 设得比较高（比如 0.1），num_round 设为 300 ~ 500。
+# 3用 Grid Search 对其他参数进行搜索
+# 4逐步将 eta 降低，找到最佳值。
+# 5以验证集为 watchlist，用找到的最佳参数组合重新在训练集上训练。注意观察算法的输出，看每次迭代后在验证集上分数的变化情况，从而得到最佳的 early_stopping_rounds。
 
 
 
+X_dtrain, X_deval, y_dtrain, y_deval = cross_validation.train_test_split(X_train, y_train, random_state=1026, test_size=0.3)
+dtrain = xgb.DMatrix(X_dtrain, y_dtrain)
+deval = xgb.DMatrix(X_deval, y_deval)
+watchlist = [(deval, 'eval')]
+params = {
+    'booster': 'gbtree',
+    'objective': 'reg:linear',
+    'subsample': 0.8,
+    'colsample_bytree': 0.85,
+    'eta': 0.05,
+    'max_depth': 7,
+    'seed': 2016,
+    'silent': 0,
+    'eval_metric': 'rmse'
+}
+clf = xgb.train(params, dtrain, 500, watchlist, early_stopping_rounds=50)
+pred = clf.predict(xgb.DMatrix(df_test))
 
 
 
-
-
+## 评估
+from sklearn.metrics import confusion_matrix #Confusion Matrix 混淆矩阵
+confusion=confusion_matrix(y_test, y_pred)
+print(confusion_matrix(y_test, y_pred))
+TP=confusion[1,1]
+TN=confusion[0,0]
+FP=confusion[0,1]
+FN=confusion[1,1]
 
 
 
