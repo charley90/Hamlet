@@ -42,6 +42,19 @@ centers = [[1, 2], [-1, -1], [1, -1], [-1, 1]] #指定聚类中心
 data, y = ds.make_blobs(N, n_features=2, centers=centers, cluster_std=[0.5, 0.25, 0.7, 0.5], random_state=0)
 
 
+from scipy.stats import multivariate_normal #构造数据分布
+np.random.seed(0)
+mu1_fact = (0, 0, 0)
+# cov_fact = np.diag(2) #对角线
+# cov_fact = np.array([(1,2,3),(2,3,4),(3,4,5)])
+cov_fact = np.identity(3)
+data1 = np.random.multivariate_normal(mu1_fact, cov_fact, 400)  # 数据分布
+mu2_fact = (2, 2, 1)
+cov_fact = np.identity(3)  # I
+data2 = np.random.multivariate_normal(mu2_fact, cov_fact, 100)
+data = np.vstack((data1, data2))  # 样本堆叠
+y = np.array([True] * 400 + [False] * 100)  # 标签生成一个是400个,一个是100个
+
 
 
 
@@ -555,6 +568,45 @@ plt.subplots_adjust(top=0.92)
 plt.show()
 
 
+
+
+## GMM模型也是无监督模型 使用的是EM算法
+from sklearn.mixture import GaussianMixture, BayesianGaussianMixture
+gmm= GaussianMixture(n_components=2, covariance_type='full', tol=1e-6, max_iter=1000)
+# n_components 类别数据
+# covariance_type 协方差类型 full是全部都估计,参数最多;diag是对对角线估计;tied是类别协方差矩阵相关;sperical是只有横和纵的
+# max_iter  最大迭代轮数
+# n_init 因为没有初始化估计先验分布,多迭代很多次,然后自己选择比较好的
+# 使用GMM绘制图形如果有外面一块是里面的类别的没什么奇怪的一个分布矮胖罢了
+dpgmm = BayesianGaussianMixture(n_components=n_components, covariance_type='full', max_iter=1000, n_init=5,
+                                weight_concentration_prior_type='dirichlet_process', weight_concentration_prior=10)
+# 狄利克雷过程高斯混合模型,能够过滤聚类中心的个数,即使给错了聚类个数也能很好的拟合
+
+gmm.fit(data)
+print '类别概率:\t', gmm.weights_[0]
+print '均值:\n', gmm.means_, '\n'
+print '方差:\n', gmm.covariances_, '\n'
+mu1, mu2 = gmm.means_
+sigma1, sigma2 = gmm.covariances_  # 这边可以看看方差和给出的是否一致
+
+#指定类别顺序
+order = pairwise_distances_argmin(m, gmm.means_, axis=1, metric='euclidean')
+#就是算各个类别的均值,然后有小到大排个序?
+
+bic[i] = gmm.bic(x) #自带BIC指标
+
+y_hat = gmm.predict(x)
+y_test_hat = gmm.predict(x_test)
+# 调节顺序
+change = (gmm.means_[0][0] > gmm.means_[1][0])
+if change:
+    z = y_hat == 0
+    y_hat[z] = 1
+    y_hat[~z] = 0
+    z = y_test_hat == 0
+    y_test_hat[z] = 1
+    y_test_hat[~z] = 0
+
 ##调参数
 
 #调参数的思想
@@ -694,124 +746,3 @@ ari = metrics.adjusted_rand_score(y, y_hat) #ARI 指数
 silhouette=metrics.silhouette_score(X,kmeans_model.lables_,metric='euclidean')
 #轮廓系数, 因为是无标签模型,所以使用原始的特征和聚类后的标签,使用欧拉距离作为衡量
 
-
-
-
-##绘图
-#自定义显示函数  显示的是:训练集的残差，测试集的残差，各个系数的大小
-fig, ax = plot_residuals_and_coeff(resid_train, resid_test, model.coef_);
-def plot_residuals_and_coeff(resid_train, resid_test, coeff):
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3))
-    axes[0].bar(np.arange(len(resid_train)), resid_train) # 各个样本对应的残差
-    axes[0].set_xlabel("sample number")
-    axes[0].set_ylabel("residual")
-    axes[0].set_title("training data")
-    axes[1].bar(np.arange(len(resid_test)), resid_test) # 各个样本对应的残差
-    axes[1].set_xlabel("sample number")
-    axes[1].set_ylabel("residual")
-    axes[1].set_title("testing data")
-    axes[2].bar(np.arange(len(coeff)), coeff) # 各个变量的系数
-    axes[2].set_xlabel("coefficient number")
-    axes[2].set_ylabel("coefficient")
-    fig.tight_layout()
-    return fig, axes
-
-
-
-N, M = 50, 50  # 横纵各采样多少个值
-x1_min, x1_max = x[:, 0].min(), x[:, 0].max()  # 第0列的范围
-x2_min, x2_max = x[:, 1].min(), x[:, 1].max()  # 第1列的范围
-t1 = np.linspace(x1_min, x1_max, N)
-t2 = np.linspace(x2_min, x2_max, M)
-x1, x2 = np.meshgrid(t1, t2)  # 生成网格采样点
-x_show = np.stack((x1.flat, x2.flat), axis=1)  # 测试点
-print x_show.shape
-
-
-
-# # 无意义，只是为了凑另外两个维度 另外一种写法
-# # 打开该注释前，确保注释掉x = x[:, :2]
-# x3 = np.ones(x1.size) * np.average(x[:, 2])
-# x4 = np.ones(x1.size) * np.average(x[:, 3])
-# x_test = np.stack((x1.flat, x2.flat, x3, x4), axis=1)  # 测试点
-
-cm_light = mpl.colors.ListedColormap(['#A0FFA0', '#FFA0A0', '#A0A0FF'])  #浅色背景表示分块区域
-cm_dark = mpl.colors.ListedColormap(['g', 'r', 'b'])  #深色表示样本点
-y_show_hat = model.predict(x_show)  # 预测值
-print y_show_hat.shape
-print y_show_hat
-y_show_hat = y_show_hat.reshape(x1.shape)  # 使之与输入的形状相同
-print y_show_hat
-plt.figure(facecolor='w')  #开始背景色为白色
-plt.pcolormesh(x1, x2, y_show_hat, cmap=cm_light)  # 预测值的显示  用浅色背景色填充分割区域
-print y_test
-print y_test.ravel()
-plt.scatter(x_test[:, 0], x_test[:, 1], c=y_test.ravel(), edgecolors='k', s=120, cmap=cm_dark, marker='*')  # 用星号深色表示测试集
-plt.scatter(x[:, 0], x[:, 1], c=y.ravel(), edgecolors='k', s=40, cmap=cm_dark)  # 全部数据 用深色填充
-plt.xlabel(iris_feature[0], fontsize=15)
-plt.ylabel(iris_feature[1], fontsize=15)
-plt.xlim(x1_min, x1_max)
-plt.ylim(x2_min, x2_max)
-plt.grid(True)
-plt.title(u'鸢尾花数据的决策树分类', fontsize=17)
-plt.show()
-
-
-
-
-
-
-
-# 过拟合：错误率 错误率作图
-depth = np.arange(1, 15)  #设置树的深度
-err_list = []  #构建数组存放错误率
-for d in depth:
-    clf = DecisionTreeClassifier(criterion='entropy', max_depth=d)
-    clf = clf.fit(x_train, y_train)
-    y_test_hat = clf.predict(x_test)  # 测试数据
-    result = (y_test_hat == y_test)  # True则预测正确，False则预测错误
-    err = 1 - np.mean(result)
-    err_list.append(err)
-    # print d, ' 准确度: %.2f%%' % (100 * err)
-    print d, ' 错误率: %.2f%%' % (100 * err)
-plt.figure(facecolor='w')
-plt.plot(depth, err_list, 'ro-', lw=2)
-plt.xlabel(u'决策树深度', fontsize=15)
-plt.ylabel(u'错误率', fontsize=15)
-plt.title(u'决策树深度与过拟合', fontsize=17)
-plt.grid(True)
-plt.show()
-
-# 3D作图
-import matplotlib
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-fig = plt.figure(1, facecolor='w')
-ax = fig.add_subplot(111, projection='3d')
-ax.scatter(d[1], d[0], d[2], c='r', s=100*density, marker='o', depthshade=True)
-ax.set_xlabel(u'红色分量')
-ax.set_ylabel(u'绿色分量')
-ax.set_zlabel(u'蓝色分量')
-plt.title(u'图像颜色三维频数分布', fontsize=20)
-
-#使用调色盘表征不同的类别
-
-cm = matplotlib.colors.ListedColormap(list('rgbm')) #调色盘设置 聚类有标签可以直接用标签
-
-clrs = plt.cm.Spectral(np.linspace(0, 0.8, n_clusters))
-
-plt.subplot(3, 3, i + 1)
-plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
-clrs = []
-for c in np.linspace(16711680, 255, n_clusters):  # 聚类时开始类别数不知道,构造调色盘
-    clrs.append('#%06x' % c)
-# clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
-for k, clr in enumerate(clrs):
-    cur = (y_hat == k)
-    plt.scatter(data[cur, 0], data[cur, 1], c=clr, edgecolors='none')
-    center = data[center_indices[k]]
-    for x in data[cur]:
-        plt.plot([x[0], center[0]], [x[1], center[1]], color=clr, zorder=1)
-plt.scatter(data[center_indices, 0], data[center_indices, 1], s=100, c=clrs, marker='*', edgecolors='k', zorder=2)
-#聚类中心用星型表示
-plt.grid(True)
