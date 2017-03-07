@@ -56,7 +56,12 @@ data = np.vstack((data1, data2))  # 样本堆叠
 y = np.array([True] * 400 + [False] * 100)  # 标签生成一个是400个,一个是100个
 
 
-
+np.random.seed(0)
+M = 200
+N = 1000
+x = np.random.randint(2, size=(M, N)) #只能是0,1作为标记的向量     # [low, high)
+x = np.array(list(set([tuple(t) for t in x]))) #去掉重复的
+#生成onehot编码
 
 
 ##使用CSV读取数据
@@ -442,6 +447,7 @@ clf = GradientBoostingRegressor(**params)
 
 
 ## SVM
+#SVM 一般训练效果较好,但是时间比较长,在整体和局部之间较好的平衡
 from sklearn import svm
 
 clf = svm.SVC(C=0.1, kernel='linear', decision_function_shape='ovr')
@@ -462,6 +468,29 @@ svr.best_estimator_.support_  #最有估计的支撑向量序号方便标出
 svr_rbf = svm.SVR(kernel='rbf', gamma=0.2, C=100)
 svr_linear = svm.SVR(kernel='linear', C=100)
 svr_poly = svm.SVR(kernel='poly', degree=3, C=100)
+
+
+##KNN
+from sklearn.neighbors import KNeighborsClassifier
+gnb = KNeighborsClassifier(n_neighbors=1).fit(x, y.ravel())
+#n_neighbors 越大越容易连成一片
+gnb.fit(x, y.ravel())
+
+
+##NB 朴素贝叶斯
+#朴素贝叶斯方法,执行时间快基本上就是MAP的思想,一般可以作为baseline,使用的算法不能比这个要差
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.naive_bayes import GaussianNB, MultinomialNB
+from sklearn.pipeline import Pipeline
+
+gnb = Pipeline([
+    ('sc', StandardScaler()),
+    ('clf', GaussianNB())])
+# mnb = Pipeline([
+#     ('sc', MinMaxScaler()),
+#     ('clf', MultinomialNB())])
+gnb.fit(x, y.ravel())
+
 
 
 
@@ -606,6 +635,13 @@ if change:
     z = y_test_hat == 0
     y_test_hat[z] = 1
     y_test_hat[~z] = 0
+
+
+
+
+
+
+
 
 ##调参数
 
